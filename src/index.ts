@@ -1,6 +1,9 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import pool from './db';
 
 dotenv.config();
 
@@ -28,6 +31,21 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
-app.listen(PORT, () => {
-  console.log(`Servidor corriendo en http://localhost:${PORT}`);
+async function initDb() {
+  try {
+    // Try both paths: works in dev (src/) and prod (dist/)
+    let schemaPath = join(__dirname, 'schema.sql');
+    try { readFileSync(schemaPath); } catch { schemaPath = join(__dirname, '..', 'src', 'schema.sql'); }
+    const schema = readFileSync(schemaPath, 'utf-8');
+    await pool.query(schema);
+    console.log('Database schema initialized');
+  } catch (err) {
+    console.error('Error initializing database (may already exist):', err);
+  }
+}
+
+initDb().then(() => {
+  app.listen(PORT, () => {
+    console.log(`Servidor corriendo en puerto ${PORT}`);
+  });
 });
